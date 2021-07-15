@@ -16,7 +16,6 @@ import RxCocoa
 class MenuViewController: UIViewController {
     // MARK: - Life Cycle
     
-    let cellId = "MenuItemTableViewCell"
     let viewModel = MenuListViewModel()
     var disposeBag = DisposeBag()
 
@@ -26,7 +25,7 @@ class MenuViewController: UIViewController {
         // Menu Cell
         viewModel.menuObservable
             .observeOn(MainScheduler.instance)
-            .bind(to: tableView.rx.items(cellIdentifier: cellId,
+            .bind(to: tableView.rx.items(cellIdentifier: MenuItemTableViewCell.identifier,
                                          cellType: MenuItemTableViewCell.self)) { index, item, cell in
                 cell.title.text = item.name
                 cell.price.text = "\(item.price)"

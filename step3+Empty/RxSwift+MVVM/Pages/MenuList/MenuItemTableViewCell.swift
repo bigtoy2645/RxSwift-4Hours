@@ -13,6 +13,7 @@ class MenuItemTableViewCell: UITableViewCell {
     @IBOutlet var count: UILabel!
     @IBOutlet var price: UILabel!
     
+    static let identifier = "MenuItemTableViewCell"
     var onChange: ((Int) -> Void)?
 
     @IBAction func onIncreaseCount() {

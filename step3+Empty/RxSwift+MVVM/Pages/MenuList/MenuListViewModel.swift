@@ -15,7 +15,7 @@ import RxSwift
 class MenuListViewModel {
     
     /// Subject : Observable + 외부에서 값을 변경할 수 있음.
-    lazy var menuObservable = BehaviorSubject<[Menu]>(value: [])
+    var menuObservable = BehaviorSubject<[Menu]>(value: [])
     
     lazy var itemsCount = menuObservable.map {
         $0.map { $0.count }.reduce(0, +)
@@ -30,8 +30,9 @@ class MenuListViewModel {
                 struct Response: Decodable {
                     let menus: [MenuItem]
                 }
-                let response = try! JSONDecoder().decode(Response.self, from: data)
-                
+                guard let response = try? JSONDecoder().decode(Response.self, from: data) else {
+                    throw NSError(domain: "Decoding error", code: -1, userInfo: nil)
+                }
                 return response.menus
             }
             .map { menuitems in
@@ -43,11 +44,13 @@ class MenuListViewModel {
                 return menus
             }
             .take(1)
-            .bind(to: menuObservable)
+            .subscribe(onNext: {
+                self.menuObservable.onNext($0)
+            })
     }
     
     func clearAllItemSelections() {
-        menuObservable
+        _ = menuObservable
             .map { menus in
                 return menus.map { menu in
                     Menu(id: menu.id, name: menu.name, price: menu.price, count: 0)
@@ -60,7 +63,7 @@ class MenuListViewModel {
     }
     
     func changeCount(item: Menu, increase: Int) {
-        menuObservable
+        _ = menuObservable
             .map { $0.map { menu in
                     if menu.id == item.id {
                         return Menu(id:menu.id,
