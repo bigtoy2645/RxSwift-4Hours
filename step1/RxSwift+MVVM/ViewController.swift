@@ -27,12 +27,19 @@ class 나중에생기는데이터<T> {                            // Observable
 class ViewController: UIViewController {
     @IBOutlet var timerLabel: UILabel!
     @IBOutlet var editView: UITextView!
+    var disposable: Disposable?     // Disposable을 지정하여 viewWillDisappear 같은 때에 dispose 할 수 있음.
+    var disposeBag = DisposeBag()   // 멤버변수이므로 클래스 인스턴스가 해제될 때 모두 dispose 됨.
 
     override func viewDidLoad() {
         super.viewDidLoad()
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.timerLabel.text = "\(Date().timeIntervalSince1970)"
         }
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        disposable?.dispose()
     }
 
     private func setVisibleWithAnimation(_ v: UIView?, _ s: Bool) {
@@ -58,9 +65,9 @@ class ViewController: UIViewController {
      Operator 동작 방법 해석 : http://reactivex.io/documentation/operators/observeon.html
      */
     
-    // MARK: - Supar API 사용한 처리
+    // MARK: - Combine Operator API
     
-    func downloadJSON(_ url: String) -> Observable<String?> {
+    func downloadJSON(_ url: String) -> Observable<String> {
         /// 1. 비동기로 생기는 데이터를 Observable로 감싸서 return하는 방법
         return Observable.create { emitter in
             let url = URL(string: MEMBER_LIST_URL)!
@@ -90,7 +97,51 @@ class ViewController: UIViewController {
         setVisibleWithAnimation(self.activityIndicator, true)
         
         /// 2. Observable로 오는 데이터를 받아서 처리하는 방법
-        _ = downloadJSON_3(MEMBER_LIST_URL)
+        let jsonObservable = downloadJSON(MEMBER_LIST_URL)
+        let helloObservable = Observable.just("Hello World")
+        
+        Observable.zip(jsonObservable, helloObservable) { $1 + "\n" + $0 }
+            .observeOn(MainScheduler.instance)  // operator : Observable에서 subscribe로 전달되는 중간에 데이터를 바꾸는 것
+            .subscribe(onNext: { json in
+                self.editView.text = json
+                self.setVisibleWithAnimation(self.activityIndicator, false)
+            })
+            .disposed(by: disposeBag)
+    }
+    
+    // MARK: - Supar API 사용한 처리
+    
+    func downloadJSON_5(_ url: String) -> Observable<String?> {
+        /// 1. 비동기로 생기는 데이터를 Observable로 감싸서 return하는 방법
+        return Observable.create { emitter in
+            let url = URL(string: MEMBER_LIST_URL)!
+            let task = URLSession.shared.dataTask(with: url) { data, _, err in
+                guard err == nil else {
+                    emitter.onError(err!)
+                    return
+                }
+                
+                if let dat = data, let json = String(data: dat, encoding: .utf8) {
+                    emitter.onNext(json)
+                }
+                
+                emitter.onCompleted()
+            }
+            
+            task.resume()
+            
+            return Disposables.create() {
+                task.cancel()
+            }
+        }
+    }
+
+    @IBAction func onLoad_5() {
+        editView.text = ""
+        setVisibleWithAnimation(self.activityIndicator, true)
+        
+        /// 2. Observable로 오는 데이터를 받아서 처리하는 방법
+        _ = downloadJSON_5(MEMBER_LIST_URL)
             .observeOn(MainScheduler.instance)  // operator : Observable에서 subscribe로 전달되는 중간에 데이터를 바꾸는 것
             .subscribe(onNext: {json in
                 self.editView.text = json
@@ -109,13 +160,13 @@ class ViewController: UIViewController {
         editView.text = ""
         setVisibleWithAnimation(self.activityIndicator, true)
         
-        downloadJSON(MEMBER_LIST_URL).subscribe(onNext: { print($0 ?? "")},
+        downloadJSON_4(MEMBER_LIST_URL).subscribe(onNext: { print($0 ?? "")},
                                                 onCompleted: { print("Complete")})
     }
     
     // MARK: - RxSwift 사용한 비동기 처리 + 오류 처리
     
-    func downloadJSON_3(_ url: String) -> Observable<String?> {
+    func downloadJSON_3(_ url: String) -> Observable<String> {
         /// 1. 비동기로 생기는 데이터를 Observable로 감싸서 return하는 방법
         return Observable.create { emitter in
             let url = URL(string: MEMBER_LIST_URL)!
